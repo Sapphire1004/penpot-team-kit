@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+action=${1:-help}
+if [ "$#" -gt 0 ]; then shift; fi
+init() {
+  docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace" -w /workspace \
+    -e PENPOT_PUBLIC_URI -e PENPOT_PORT -e PENPOT_BIND_ADDRESS -e COMPOSE_PROJECT_NAME \
+    node:24-alpine node tools/init.mjs
+}
+case "$action" in
+  init) init ;;
+  up)
+    if [ ! -f .env ]; then init; fi
+    docker compose up -d --wait --wait-timeout 240
+    docker compose --profile tools run --rm --no-deps tools node tools/wait.mjs
+    ;;
+  account:create) docker compose exec backend python3 manage.py create-profile "$@" ;;
+  test) docker compose --profile tools run --rm --no-deps tools node tools/test-multiuser.mjs "$@" ;;
+  test:cleanup) docker compose --profile tools run --rm --no-deps tools node tools/test-multiuser.mjs --cleanup ;;
+  status) docker compose ps ;;
+  stop) docker compose stop ;;
+  down) docker compose down ;;
+  compose) docker compose "$@" ;;
+  *) printf '%s\n' 'Usage: ./penpot init|up|account:create|test|test:cleanup|status|stop|down|compose' ;;
+esac

@@ -1,0 +1,41 @@
+name: Validate deployment kit
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      integration:
+        description: Start a disposable Penpot stack and run the multiuser protocol test
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Check scripts and generated configuration
+        run: |
+          sh -n penpot
+          for file in tools/*.mjs tools/lib/*.mjs; do node --check "$file"; done
+          node -e "JSON.parse(require('fs').readFileSync('examples/mcp-client/.mcp.json.example'))"
+          ./penpot init
+          ./penpot compose config -q
+      - name: Start fresh stack
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.integration }}
+        run: ./penpot up
+      - name: Test ten authenticated collaboration connections
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.integration }}
+        run: ./penpot test
+      - name: Preserve sanitized reports
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.integration }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: multiuser-report
+          path: test-results/*.json
+          if-no-files-found: ignore
+      - name: Stop disposable stack
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.integration }}
+        run: ./penpot down

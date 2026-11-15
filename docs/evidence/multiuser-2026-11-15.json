@@ -1,0 +1,86 @@
+{
+  "startedAt": "2026-11-15T14:05:18.141Z",
+  "origin": "http://frontend:8080",
+  "scope": "Ten distinct authenticated accounts and real collaboration WebSockets: eight editors (including the test owner), two viewers. An additional outsider tests access isolation. Five concurrent edit rounds on eight independent shapes. This is a short protocol integration test, not ten browser sessions or a long-running load test.",
+  "checks": [
+    "eleven distinct profiles log in with native password authentication",
+    "isolated test team and file contain eight real editable rectangle shapes",
+    "ten independent native sessions read the same file concurrently",
+    "ten distinct accounts hold simultaneous subscribed collaboration connections",
+    "forty concurrent shape edits persist without losing independent updates and reach all peers",
+    "both viewers receive real-time changes but cannot edit the file",
+    "a logged-in outsider cannot access the shared file",
+    "sharing one team does not grant access to another member personal project",
+    "anonymous file access is rejected",
+    "MCP tools are discoverable and unauthenticated design execution is rejected",
+    "logout invalidates a session after collaborative editing"
+  ],
+  "rounds": [
+    {
+      "round": 1,
+      "concurrentEditors": 8,
+      "writesMs": 92,
+      "allPeerNotificationsMs": 92
+    },
+    {
+      "round": 2,
+      "concurrentEditors": 8,
+      "writesMs": 61,
+      "allPeerNotificationsMs": 62
+    },
+    {
+      "round": 3,
+      "concurrentEditors": 8,
+      "writesMs": 40,
+      "allPeerNotificationsMs": 41
+    },
+    {
+      "round": 4,
+      "concurrentEditors": 8,
+      "writesMs": 39,
+      "allPeerNotificationsMs": 40
+    },
+    {
+      "round": 5,
+      "concurrentEditors": 8,
+      "writesMs": 39,
+      "allPeerNotificationsMs": 40
+    }
+  ],
+  "concurrentFileLoadMs": [
+    48,
+    27,
+    47,
+    34,
+    34,
+    46,
+    29,
+    49,
+    48,
+    46
+  ],
+  "peakAuthenticatedWebSockets": 10,
+  "mcp": {
+    "toolNames": [
+      "execute_code",
+      "high_level_overview",
+      "penpot_api_info",
+      "export_shape"
+    ],
+    "unauthenticatedDesignOperationRejected": true
+  },
+  "observedNotificationMessages": 743,
+  "connectedEditors": 8,
+  "connectedViewers": 2,
+  "concurrentShapeUpdates": 40,
+  "cleanup": {
+    "requestedProfileDeletions": 11,
+    "temporaryLoginsRejected": 11,
+    "errors": [],
+    "recoveryFileRetained": false
+  },
+  "elapsedMs": 4159,
+  "finishedAt": "2026-11-15T14:05:22.301Z",
+  "passed": true,
+  "checkCount": 11
+}

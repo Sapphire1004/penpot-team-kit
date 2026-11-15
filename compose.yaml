@@ -1,0 +1,105 @@
+name: ${COMPOSE_PROJECT_NAME:-penpot-team-kit}
+
+x-app: &app
+  PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:-http://localhost:9001}
+  PENPOT_FLAGS: ${PENPOT_FLAGS:-disable-registration enable-login-with-password disable-email-verification disable-secure-session-cookies disable-smtp disable-log-emails disable-admin-console enable-mcp}
+
+services:
+  frontend:
+    image: penpotapp/frontend:${PENPOT_VERSION:-2.18.5}
+    restart: unless-stopped
+    environment:
+      <<: *app
+      PENPOT_BACKEND_URI: http://backend:6060
+      PENPOT_EXPORTER_URI: http://exporter:6061
+      PENPOT_MCP_URI: http://mcp:4401
+      PENPOT_MCP_URI_WS: http://mcp:4402
+    ports: ["${PENPOT_BIND_ADDRESS:-127.0.0.1}:${PENPOT_PORT:-9001}:8080"]
+    volumes: ["assets:/opt/data/assets"]
+    depends_on:
+      backend: {condition: service_healthy}
+      mcp: {condition: service_started}
+      exporter: {condition: service_started}
+
+  backend:
+    image: penpotapp/backend:${PENPOT_VERSION:-2.18.5}
+    restart: unless-stopped
+    environment:
+      <<: *app
+      PENPOT_FLAGS: ${PENPOT_FLAGS:-disable-registration enable-login-with-password disable-email-verification disable-secure-session-cookies disable-smtp disable-log-emails disable-admin-console enable-mcp} enable-prepl-server
+      PENPOT_PREPL_HOST: 127.0.0.1
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY:?Run ./penpot init first}
+      PENPOT_DATABASE_URI: postgresql://postgres/penpot
+      PENPOT_DATABASE_USERNAME: penpot
+      PENPOT_DATABASE_PASSWORD: ${PENPOT_DATABASE_PASSWORD:?Run ./penpot init first}
+      PENPOT_REDIS_URI: redis://valkey/0
+      PENPOT_OBJECTS_STORAGE_BACKEND: fs
+      PENPOT_OBJECTS_STORAGE_FS_DIRECTORY: /opt/data/assets
+      PENPOT_TELEMETRY_ENABLED: "false"
+    volumes: ["assets:/opt/data/assets"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      valkey: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:6060/readyz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 30
+
+  mcp:
+    image: penpotapp/mcp:${PENPOT_VERSION:-2.18.5}
+    restart: unless-stopped
+
+  exporter:
+    image: penpotapp/exporter:${PENPOT_VERSION:-2.18.5}
+    restart: unless-stopped
+    environment:
+      <<: *app
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY}
+      PENPOT_INTERNAL_URI: http://frontend:8080
+      PENPOT_REDIS_URI: redis://valkey/0
+    depends_on:
+      valkey: {condition: service_healthy}
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    stop_signal: SIGINT
+    environment:
+      POSTGRES_DB: penpot
+      POSTGRES_USER: penpot
+      POSTGRES_PASSWORD: ${PENPOT_DATABASE_PASSWORD}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    volumes: ["database:/var/lib/postgresql/data"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U penpot -d penpot"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:8.1
+    restart: unless-stopped
+    command: [valkey-server, --maxmemory, 128mb, --maxmemory-policy, volatile-lfu]
+    healthcheck:
+      test: [CMD, valkey-cli, ping]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  tools:
+    image: node:24-alpine
+    profiles: [tools]
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    network_mode: service:backend
+    working_dir: /workspace
+    volumes: [".:/workspace"]
+    environment:
+      PENPOT_ORIGIN: http://frontend:8080
+      PENPOT_ADMIN_HOST: 127.0.0.1
+      PENPOT_ADMIN_PORT: "6063"
+
+volumes:
+  database:
+  assets:

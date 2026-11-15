@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.local/
+test-results/
+backups/
+node_modules/
+.DS_Store
+*.credentials.json
+*.dump
+*.sql
+*.penpot
